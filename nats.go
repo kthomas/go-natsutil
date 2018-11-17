@@ -39,7 +39,12 @@ func GetNatsStreamingConnection(connectionLostHandler func(_ stan.Conn, reason e
 			return nil
 		}
 
-		conn, err := stan.Connect(natsClusterID, fmt.Sprintf("%s-%s", natsClientPrefix, clientID.String()), stan.NatsConn(natsConn), stan.SetConnectionLostHandler(connectionLostHandler))
+		conn, err := stan.Connect(natsClusterID, fmt.Sprintf("%s-%s", natsClientPrefix, clientID.String()), stan.NatsConn(natsConn), stan.SetConnectionLostHandler(func(c stan.Conn, reason error) {
+			natsStreamingConnection = nil
+			if connectionLostHandler != nil {
+				connectionLostHandler(c, reason)
+			}
+		}))
 		if err == nil {
 			natsStreamingConnection = &conn
 		} else {
