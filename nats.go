@@ -8,6 +8,12 @@ import (
 	"github.com/nats-io/go-nats-streaming"
 )
 
+// GetNatsConsumerConcurrency returns the environment-configured concurrency
+// specified for consumers
+func GetNatsConsumerConcurrency() uint64 {
+	return natsConsumerConcurrency
+}
+
 // GetNatsConnection returns the cached nats connection or establishes
 // and caches it if it doesn't exist
 func GetNatsConnection() *nats.Conn {
