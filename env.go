@@ -27,6 +27,12 @@ var (
 
 func init() {
 	bootstrapOnce.Do(func() {
+		lvl := os.Getenv("LOG_LEVEL")
+		if lvl == "" {
+			lvl = "INFO"
+		}
+		log = logger.NewLogger("go-natsutil", lvl, true)
+
 		if os.Getenv("NATS_TOKEN") != "" {
 			natsToken = os.Getenv("NATS_TOKEN")
 		}
