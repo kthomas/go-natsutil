@@ -58,7 +58,8 @@ func GetNatsStreamingConnection(connectionLostHandler func(_ stan.Conn, reason e
 		}
 	} else {
 		conn := *natsStreamingConnection
-		if conn.NatsConn().IsClosed() {
+		if conn.NatsConn() == nil || conn.NatsConn().IsClosed() {
+			log.Debugf("NATS streaming closed; attempting to reconnect: %s", natsStreamingURL)
 			natsStreamingConnection = nil
 			return GetNatsStreamingConnection(connectionLostHandler)
 		}
