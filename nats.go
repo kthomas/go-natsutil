@@ -67,3 +67,26 @@ func GetNatsStreamingConnection(connectionLostHandler func(_ stan.Conn, reason e
 
 	return natsStreamingConnection
 }
+
+// Nack the given NATS message
+func Nack(conn *stan.Conn, msg *stan.Msg) error {
+	if conn == nil || (*conn).NatsConn() == nil || (*conn).NatsConn().IsClosed() {
+		err := fmt.Errorf("Cannot Nack %d-byte NATS message on subject: %s", msg.Size(), msg.Subject)
+		log.Warning(err.Error())
+		return err
+	}
+	_, err := (*conn).PublishAsync(natsDeadLetterSubject, msg.Data, func(_ string, err error) {
+		if err == nil {
+			err = msg.Ack()
+			if err == nil {
+				log.Debugf("Nacked %d-byte NATS message on subject: %s", msg.Size(), msg.Subject)
+			} else {
+				log.Warningf("Failed to Nack NATS message which was successfully dead-lettered: %s", err.Error())
+			}
+		}
+	})
+	if err != nil {
+		log.Warningf("Failed to Nack %d-byte NATS message on subject: %s; publish failed: %s", msg.Size, msg.Subject, err.Error())
+	}
+	return err
+}

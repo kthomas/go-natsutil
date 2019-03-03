@@ -10,14 +10,18 @@ import (
 	"github.com/nats-io/go-nats-streaming"
 )
 
+const defaultNatsDeadLetterSubject = "nats.deadletter"
+
 var (
 	log *logger.Logger
+
+	natsConnection          *nats.Conn
+	natsStreamingConnection *stan.Conn
 
 	natsClientPrefix        string
 	natsClusterID           string
 	natsConsumerConcurrency uint64
-	natsConnection          *nats.Conn
-	natsStreamingConnection *stan.Conn
+	natsDeadLetterSubject   string
 	natsToken               string
 	natsURL                 string
 	natsStreamingURL        string
@@ -49,6 +53,12 @@ func init() {
 
 		if os.Getenv("NATS_CLUSTER_ID") != "" {
 			natsClusterID = os.Getenv("NATS_CLUSTER_ID")
+		}
+
+		if os.Getenv("NATS_DEAD_LETTER_SUBJECT") != "" {
+			natsDeadLetterSubject = os.Getenv("NATS_DEAD_LETTER_SUBJECT")
+		} else {
+			natsDeadLetterSubject = defaultNatsDeadLetterSubject
 		}
 
 		if os.Getenv("NATS_STREAMING_URL") != "" {
