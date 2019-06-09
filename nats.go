@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	uuid "github.com/kthomas/go.uuid"
-	nats "github.com/nats-io/go-nats"
-	"github.com/nats-io/go-nats-streaming"
+	nats "github.com/nats-io/nats.go"
+	"github.com/nats-io/stan.go"
 )
 
 // GetNatsConsumerConcurrency returns the environment-configured concurrency

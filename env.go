@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/kthomas/go-logger"
-	nats "github.com/nats-io/go-nats"
-	"github.com/nats-io/go-nats-streaming"
+	nats "github.com/nats-io/nats.go"
+	stan "github.com/nats-io/stan.go"
 )
 
 const defaultNatsDeadLetterSubject = "nats.deadletter"
