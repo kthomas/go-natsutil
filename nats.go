@@ -58,19 +58,12 @@ func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) 
 	if err != nil {
 		log.Warningf("NATS connection failed; %s", err.Error())
 		return nil, err
-	} else {
-		clientID, err := conn.GetClientID()
-		if err != nil {
-			log.Warningf("Failed to retrieve valid client id from NATS connection; %s", err.Error())
-			return nil, err
-		}
-
-		natsConnectionMutex.Lock()
-		defer natsConnectionMutex.Unlock()
-		natsConnections[conn.Opts.Name] = conn
-
-		log.Debugf("Caching NATS connection for client id: %s", clientID)
 	}
+
+	log.Debugf("Caching NATS connection: %s", conn.Opts.Name)
+	natsConnectionMutex.Lock()
+	defer natsConnectionMutex.Unlock()
+	natsConnections[conn.Opts.Name] = conn
 
 	return conn, nil
 }
