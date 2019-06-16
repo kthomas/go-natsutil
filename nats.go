@@ -142,7 +142,7 @@ func Nack(conn *stan.Conn, msg *stan.Msg) error {
 		}
 	})
 	if err != nil {
-		log.Warningf("Failed to Nack %d-byte NATS message on subject: %s; publish failed: %s", msg.Size, msg.Subject, err.Error())
+		log.Warningf("Failed to Nack %d-byte NATS message on subject: %s; publish failed: %s", msg.Size(), msg.Subject, err.Error())
 	}
 	return err
 }
