@@ -10,13 +10,13 @@ import (
 )
 
 // GetNatsConsumerConcurrency returns the environment-configured concurrency
-// specified for consumers
+// specified for consumers; useful for configuring the number of subscriptions
+// to create per NATS connection
 func GetNatsConsumerConcurrency() uint64 {
 	return natsConsumerConcurrency
 }
 
-// GetNatsConnection returns the cached NATS connection or establishes
-// and caches it if it doesn't exist
+// GetNatsConnection establishes, caches and returns a new NATS connection
 func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) {
 	clientID, err := uuid.NewV4()
 	if err != nil {
@@ -68,8 +68,8 @@ func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) 
 	return conn, nil
 }
 
-// GetNatsStreamingConnection returns the cached NATS streaming connection or
-// establishes and caches it if it doesn't exist
+// GetNatsStreamingConnection establishes, caches and returns a new NATS streaming connection;
+// the underlying NATS connection will not be closed when the NATS streaming subsystem exits.
 func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandler func(_ stan.Conn, reason error)) (sconn stan.Conn, err error) {
 	natsStreamingConnectionMutex.Lock()
 	defer natsStreamingConnectionMutex.Unlock()
@@ -90,12 +90,13 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 			_conn := c.NatsConn()
 			_name := string(clientName)
 			if _conn != nil && _conn.Opts.Name == _name {
+				natsConnectionMutex.Lock()
+				defer natsConnectionMutex.Unlock()
 				if staleConn, staleConnOk := natsConnections[_name]; staleConnOk {
-					natsConnectionMutex.Lock()
 					delete(natsConnections, _name)
 					natsConnectionMutex.Unlock()
 
-					if !staleConn.IsClosed() {
+					if !staleConn.IsClosed() && !staleConn.IsDraining() {
 						log.Debugf("Attempting to drain NATS connection: %s", clientName)
 						err = staleConn.Drain()
 						if err != nil {
@@ -103,6 +104,9 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 						}
 					}
 				}
+			} else if !_conn.IsClosed() && !_conn.IsDraining() {
+				log.Debugf("Attempting to drain NATS connection: %s", clientName)
+				_conn.Drain()
 			}
 
 			if connectionLostHandler != nil {
@@ -117,9 +121,17 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 	return sconn, nil
 }
 
+// AttemptNack tries to Nack the given message if it meets basic time-based deadlettering criteria
+func AttemptNack(conn *stan.Conn, msg *stan.Msg, timeout int64) {
+	if ShouldDeadletter(msg, timeout) {
+		log.Debugf("Nacking redelivered %d-byte message after %dms timeout: %s", msg.Size(), timeout, msg.Subject)
+		Nack(conn, msg)
+	}
+}
+
 // Nack the given NATS message
 func Nack(conn *stan.Conn, msg *stan.Msg) error {
-	if conn == nil || (*conn).NatsConn() == nil || (*conn).NatsConn().IsClosed() {
+	if conn == nil || (*conn).NatsConn() == nil || (*conn).NatsConn().IsClosed() || (*conn).NatsConn().IsDraining() || (*conn).NatsConn().IsReconnecting() {
 		err := fmt.Errorf("Cannot Nack %d-byte NATS message on subject: %s", msg.Size(), msg.Subject)
 		log.Warning(err.Error())
 		return err
@@ -138,4 +150,9 @@ func Nack(conn *stan.Conn, msg *stan.Msg) error {
 		log.Warningf("Failed to Nack %d-byte NATS message on subject: %s; publish failed: %s", msg.Size(), msg.Subject, err.Error())
 	}
 	return err
+}
+
+// ShouldDeadletter determines if a given message should be deadlettered
+func ShouldDeadletter(msg *stan.Msg, deadletterTimeout int64) bool {
+	return msg.Redelivered && time.Now().Unix()-msg.Timestamp >= deadletterTimeout
 }
