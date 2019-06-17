@@ -83,9 +83,6 @@ func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn,
 // GetNatsStreamingConnection establishes, caches and returns a new NATS streaming connection;
 // the underlying NATS connection will not be closed when the NATS streaming subsystem exits.
 func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandler func(_ stan.Conn, reason error)) (sconn stan.Conn, err error) {
-	natsStreamingConnectionMutex.Lock()
-	defer natsStreamingConnectionMutex.Unlock()
-
 	conn, err := GetNatsConnection(natsStreamingURL, drainTimeout)
 	if err != nil {
 		log.Warningf("NATS connection failed; %s", err.Error())
@@ -118,6 +115,17 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 				}
 			}
 
+			_sconn, err := GetNatsStreamingConnection(drainTimeout, connectionLostHandler)
+			if err != nil {
+				log.Warningf("Failed to reestablish NATS streaming connection; %s", err.Error())
+			} else {
+				log.Debugf("Reestablished NATS streaming connection: %s", clientName)
+				sconn = _sconn
+				natsStreamingConnectionMutex.Lock()
+				defer natsStreamingConnectionMutex.Unlock()
+				natsStreamingConnections[sClientID] = &sconn
+			}
+
 			if connectionLostHandler != nil {
 				connectionLostHandler(c, reason)
 			}
@@ -126,6 +134,10 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 		log.Warningf("NATS streaming connection failed; %s", err.Error())
 		return nil, err
 	}
+
+	natsStreamingConnectionMutex.Lock()
+	defer natsStreamingConnectionMutex.Unlock()
+	natsStreamingConnections[sClientID] = &sconn
 
 	return sconn, nil
 }
