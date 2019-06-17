@@ -104,6 +104,8 @@ func init() {
 		if os.Getenv("NATS_CLIENT_AUTH") != "" {
 			clientAuthStr := os.Getenv("NATS_CLIENT_AUTH")
 			natsClientAuth, _ = strconv.Atoi(clientAuthStr)
+		} else {
+			natsClientAuth = int(tls.ClientAuthType(tls.NoClientCert))
 		}
 
 		if os.Getenv("NATS_NAME_TO_CERTIFICATE") != "" {
