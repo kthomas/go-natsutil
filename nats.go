@@ -18,7 +18,7 @@ func GetNatsConsumerConcurrency() uint64 {
 }
 
 // GetNatsConnection establishes, caches and returns a new NATS connection
-func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) {
+func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn, err error) {
 	clientID, err := uuid.NewV4()
 	if err != nil {
 		log.Warningf("Failed to generate client id for NATS connection; %s", err.Error())
@@ -79,7 +79,7 @@ func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) 
 		}),
 	}
 
-	conn, err = nats.Connect(natsURL, options...)
+	conn, err = nats.Connect(url, options...)
 
 	if err != nil {
 		log.Warningf("NATS connection failed; %s", err.Error())
@@ -100,7 +100,7 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 	natsStreamingConnectionMutex.Lock()
 	defer natsStreamingConnectionMutex.Unlock()
 
-	conn, err := GetNatsConnection(drainTimeout)
+	conn, err := GetNatsConnection(natsStreamingURL, drainTimeout)
 	if err != nil {
 		log.Warningf("NATS connection failed; %s", err.Error())
 		return nil, err
