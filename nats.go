@@ -25,7 +25,31 @@ func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) 
 		return nil, err
 	}
 
+	natsSecureOption := func(o *nats.Options) error {
+		o.Secure = false
+		return nil
+	}
+
+	if natsForceTLS {
+		natsSecureOption = nats.Secure()
+	} else {
+		// certificates := make([]tls.Certificate, 0)
+		// clientAuth := tls.NoClientCert
+		// nameToCertificate := map[string]*tls.Certificate{}
+		// var rootCAs *x509.CertPool
+		// var clientCAs *x509.CertPool
+
+		natsSecureOption = nats.Secure(&tls.Config{
+			Certificates:      natsTLSCertificates,
+			ClientAuth:        tls.ClientAuthType(natsClientAuth),
+			ClientCAs:         natsClientCACertificates,
+			NameToCertificate: natsNameToCertificate,
+			RootCAs:           natsRootCACertificates,
+		})
+	}
+
 	options := []nats.Option{
+		natsSecureOption,
 		nats.Name(fmt.Sprintf("%s-%s", natsClientPrefix, clientID.String())),
 		nats.Token(natsToken),
 		nats.MaxReconnects(-1),
@@ -53,25 +77,6 @@ func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) 
 		nats.DiscoveredServersHandler(func(_conn *nats.Conn) {
 			log.Debugf("NATS connection discovered peers; %s", _conn.Opts.Name)
 		}),
-	}
-
-	if natsForceTLS {
-		options = options[0 : len(options)+1]
-		options[len(options)] = nats.Secure()
-	} else {
-		// certificates := make([]tls.Certificate, 0)
-		// clientAuth := tls.NoClientCert
-		// nameToCertificate := map[string]*tls.Certificate{}
-		// var rootCAs *x509.CertPool
-		// var clientCAs *x509.CertPool
-
-		options[len(options)] = nats.Secure(&tls.Config{
-			Certificates:      natsTLSCertificates,
-			ClientAuth:        tls.ClientAuthType(natsClientAuth),
-			ClientCAs:         natsClientCACertificates,
-			NameToCertificate: natsNameToCertificate,
-			RootCAs:           natsRootCACertificates,
-		})
 	}
 
 	conn, err = nats.Connect(natsURL, options...)
