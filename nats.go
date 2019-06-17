@@ -1,7 +1,6 @@
 package natsutil
 
 import (
-	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -25,31 +24,8 @@ func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn,
 		return nil, err
 	}
 
-	natsSecureOption := func(o *nats.Options) error {
-		o.Secure = false
-		return nil
-	}
-
-	if natsForceTLS {
-		natsSecureOption = nats.Secure()
-	} else {
-		// certificates := make([]tls.Certificate, 0)
-		// clientAuth := tls.NoClientCert
-		// nameToCertificate := map[string]*tls.Certificate{}
-		// var rootCAs *x509.CertPool
-		// var clientCAs *x509.CertPool
-
-		natsSecureOption = nats.Secure(&tls.Config{
-			Certificates:      natsTLSCertificates,
-			ClientAuth:        tls.ClientAuthType(natsClientAuth),
-			ClientCAs:         natsClientCACertificates,
-			NameToCertificate: natsNameToCertificate,
-			RootCAs:           natsRootCACertificates,
-		})
-	}
-
 	options := []nats.Option{
-		natsSecureOption,
+		natsTLSConfig,
 		nats.Name(fmt.Sprintf("%s-%s", natsClientPrefix, clientID.String())),
 		nats.Token(natsToken),
 		nats.MaxReconnects(-1),

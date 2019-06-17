@@ -34,6 +34,7 @@ var (
 	natsStreamingURL        string
 
 	natsForceTLS             bool
+	natsTLSConfig            func(o *nats.Options) error
 	natsTLSCertificates      []tls.Certificate
 	natsClientAuth           int
 	natsNameToCertificate    map[string]*tls.Certificate
@@ -142,6 +143,31 @@ func init() {
 		if os.Getenv("NATS_CLIENT_CA_CERTIFICATES") != "" {
 			clientCACertificates := strings.Split(os.Getenv("NATS_CLIENT_CA_CERTIFICATES"), ",")
 			log.Debugf("Parsed client CA certificates: %s", clientCACertificates)
+		}
+
+		if natsForceTLS {
+			natsTLSConfig = nats.Secure()
+		} else {
+			if len(natsTLSCertificates) > 0 || natsClientAuth != 0 || natsRootCACertificates != nil || len(natsNameToCertificate) > 0 {
+				// certificates := make([]tls.Certificate, 0)
+				// clientAuth := tls.NoClientCert
+				// nameToCertificate := map[string]*tls.Certificate{}
+				// var rootCAs *x509.CertPool
+				// var clientCAs *x509.CertPool
+
+				natsTLSConfig = nats.Secure(&tls.Config{
+					Certificates:      natsTLSCertificates,
+					ClientAuth:        tls.ClientAuthType(natsClientAuth),
+					ClientCAs:         natsClientCACertificates,
+					NameToCertificate: natsNameToCertificate,
+					RootCAs:           natsRootCACertificates,
+				})
+			} else {
+				natsTLSConfig = func(o *nats.Options) error {
+					o.Secure = false
+					return nil
+				}
+			}
 		}
 	}
 
