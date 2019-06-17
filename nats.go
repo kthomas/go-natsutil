@@ -58,10 +58,10 @@ func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn,
 			natsConnectionMutex.Unlock()
 		}),
 		nats.ReconnectHandler(func(_conn *nats.Conn) {
-			log.Debugf("NATS connection reestablished; %s", _conn.Opts.Name)
+			log.Debugf("NATS connection reestablished: %s", _conn.Opts.Name)
 		}),
 		nats.DiscoveredServersHandler(func(_conn *nats.Conn) {
-			log.Debugf("NATS connection discovered peers; %s", _conn.Opts.Name)
+			log.Debugf("NATS connection discovered peers: %s", _conn.Opts.Name)
 		}),
 	}
 
@@ -116,9 +116,6 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 						}
 					}
 				}
-			} else if _conn != nil && !_conn.IsClosed() && !_conn.IsDraining() {
-				log.Debugf("Attempting to drain NATS connection: %s", clientName)
-				_conn.Drain()
 			}
 
 			if connectionLostHandler != nil {
