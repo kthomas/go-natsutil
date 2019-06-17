@@ -56,6 +56,7 @@ func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) 
 	}
 
 	if natsForceTLS {
+		options = options[0:len(options)]
 		options[len(options)] = nats.Secure()
 	} else {
 		// certificates := make([]tls.Certificate, 0)
