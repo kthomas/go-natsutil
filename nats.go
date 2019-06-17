@@ -1,7 +1,10 @@
 package natsutil
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"os"
 	"time"
 
 	uuid "github.com/kthomas/go.uuid"
@@ -24,10 +27,9 @@ func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) 
 		return nil, err
 	}
 
-	conn, err = nats.Connect(natsURL,
+	options := []nats.Option{
 		nats.Name(fmt.Sprintf("%s-%s", natsClientPrefix, clientID.String())),
 		nats.Token(natsToken),
-		nats.Secure(), // FIXME-- do not use Secure() by itself; see RootCAs() or pass a proper TLS config into Secure()
 		nats.MaxReconnects(-1),
 		nats.ReconnectBufSize(-1),
 		nats.DrainTimeout(drainTimeout),
@@ -53,7 +55,27 @@ func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) 
 		nats.DiscoveredServersHandler(func(_conn *nats.Conn) {
 			log.Debugf("NATS connection discovered peers; %s", _conn.Opts.Name)
 		}),
-	)
+	}
+
+	if os.Getenv("NATS_FORCE_TLS") == "true" {
+		options[len(options)] = nats.Secure()
+	} else {
+		certificates := make([]tls.Certificate, 0)
+		clientAuth := tls.NoClientCert
+		nameToCertificate := map[string]*tls.Certificate{}
+		var rootCAs *x509.CertPool
+		var clientCAs *x509.CertPool
+
+		options[len(options)] = nats.Secure(&tls.Config{
+			Certificates:      certificates,
+			ClientAuth:        clientAuth,
+			ClientCAs:         clientCAs,
+			NameToCertificate: nameToCertificate,
+			RootCAs:           rootCAs,
+		})
+	}
+
+	conn, err = nats.Connect(natsURL, options...)
 
 	if err != nil {
 		log.Warningf("NATS connection failed; %s", err.Error())
