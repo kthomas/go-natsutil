@@ -2,9 +2,7 @@ package natsutil
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"os"
 	"time"
 
 	uuid "github.com/kthomas/go.uuid"
@@ -57,21 +55,21 @@ func GetNatsConnection(drainTimeout time.Duration) (conn *nats.Conn, err error) 
 		}),
 	}
 
-	if os.Getenv("NATS_FORCE_TLS") == "true" {
+	if natsForceTLS {
 		options[len(options)] = nats.Secure()
 	} else {
-		certificates := make([]tls.Certificate, 0)
-		clientAuth := tls.NoClientCert
-		nameToCertificate := map[string]*tls.Certificate{}
-		var rootCAs *x509.CertPool
-		var clientCAs *x509.CertPool
+		// certificates := make([]tls.Certificate, 0)
+		// clientAuth := tls.NoClientCert
+		// nameToCertificate := map[string]*tls.Certificate{}
+		// var rootCAs *x509.CertPool
+		// var clientCAs *x509.CertPool
 
 		options[len(options)] = nats.Secure(&tls.Config{
-			Certificates:      certificates,
-			ClientAuth:        clientAuth,
-			ClientCAs:         clientCAs,
-			NameToCertificate: nameToCertificate,
-			RootCAs:           rootCAs,
+			Certificates:      natsTLSCertificates,
+			ClientAuth:        tls.ClientAuthType(natsClientAuth),
+			ClientCAs:         natsClientCACertificates,
+			NameToCertificate: natsNameToCertificate,
+			RootCAs:           natsRootCACertificates,
 		})
 	}
 

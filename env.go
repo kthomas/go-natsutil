@@ -1,8 +1,12 @@
 package natsutil
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/kthomas/go-logger"
@@ -28,6 +32,13 @@ var (
 	natsToken               string
 	natsURL                 string
 	natsStreamingURL        string
+
+	natsForceTLS             bool
+	natsTLSCertificates      []tls.Certificate
+	natsClientAuth           int
+	natsNameToCertificate    map[string]*tls.Certificate
+	natsRootCACertificates   *x509.CertPool
+	natsClientCACertificates *x509.CertPool
 )
 
 func init() {
@@ -62,6 +73,74 @@ func init() {
 		natsDeadLetterSubject = os.Getenv("NATS_DEAD_LETTER_SUBJECT")
 	} else {
 		natsDeadLetterSubject = defaultNatsDeadLetterSubject
+	}
+
+	natsForceTLS = os.Getenv("NATS_FORCE_TLS") == "true"
+	if !natsForceTLS {
+		if os.Getenv("NATS_TLS_CERTIFICATES") != "" {
+			natsTLSCertificatesJSON := os.Getenv("NATS_TLS_CERTIFICATES")
+			tlsCertificatesMap := map[string]string{} // mapping private key path -> certificate path
+			json.Unmarshal([]byte(natsTLSCertificatesJSON), &tlsCertificatesMap)
+
+			natsTLSCertificates = make([]tls.Certificate, 0)
+			for keyPath, certPath := range tlsCertificatesMap {
+				keyFile, _ := os.Open(keyPath)
+				keyBytes := []byte{}
+				_, err := keyFile.Read(keyBytes)
+
+				certFile, _ := os.Open(certPath)
+				certBytes := []byte{}
+				_, err = certFile.Read(certBytes)
+
+				cert, err := tls.X509KeyPair(certBytes, keyBytes)
+				if err != nil {
+					log.Warningf("Failed to parse X509 keypair with keypath: %s; certpath: %s; %s", keyPath, certPath, err.Error())
+				} else {
+					natsTLSCertificates = append(natsTLSCertificates, cert)
+				}
+			}
+		}
+
+		if os.Getenv("NATS_CLIENT_AUTH") != "" {
+			clientAuthStr := os.Getenv("NATS_CLIENT_AUTH")
+			natsClientAuth, _ = strconv.Atoi(clientAuthStr)
+		}
+
+		if os.Getenv("NATS_NAME_TO_CERTIFICATE") != "" {
+			nameToCertificateJSON := os.Getenv("NATS_NAME_TO_CERTIFICATE")
+			nameToKeyPairMap := map[string]map[string]string{}
+			json.Unmarshal([]byte(nameToCertificateJSON), &nameToKeyPairMap)
+
+			natsNameToCertificate = map[string]*tls.Certificate{}
+			for name, keyPair := range nameToKeyPairMap {
+				for keyPath, certPath := range keyPair {
+					keyFile, _ := os.Open(keyPath)
+					keyBytes := []byte{}
+					_, err := keyFile.Read(keyBytes)
+
+					certFile, _ := os.Open(certPath)
+					certBytes := []byte{}
+					_, err = certFile.Read(certBytes)
+
+					cert, err := tls.X509KeyPair(certBytes, keyBytes)
+					if err != nil {
+						log.Warningf("Failed to parse X509 keypair with keypath: %s; certpath: %s; %s", keyPath, certPath, err.Error())
+					} else {
+						natsNameToCertificate[name] = &cert
+					}
+				}
+			}
+		}
+
+		if os.Getenv("NATS_ROOT_CA_CERTIFICATES") != "" {
+			rootCACertificates := strings.Split(os.Getenv("NATS_ROOT_CA_CERTIFICATES"), ",")
+			log.Debugf("Parsed root CA certificates: %s", rootCACertificates)
+		}
+
+		if os.Getenv("NATS_CLIENT_CA_CERTIFICATES") != "" {
+			clientCACertificates := strings.Split(os.Getenv("NATS_CLIENT_CA_CERTIFICATES"), ",")
+			log.Debugf("Parsed client CA certificates: %s", clientCACertificates)
+		}
 	}
 
 	if os.Getenv("NATS_STREAMING_URL") != "" {
