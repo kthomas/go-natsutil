@@ -24,8 +24,18 @@ func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn,
 		return nil, err
 	}
 
+	natsSecureOption := func(o *nats.Options) error {
+		o.Secure = false
+		return nil
+	}
+	if natsForceTLS {
+		natsSecureOption = nats.Secure()
+	} else if natsTLSConfig != nil {
+		natsSecureOption = nats.Secure(natsTLSConfig)
+	}
+
 	options := []nats.Option{
-		natsTLSConfig,
+		natsSecureOption,
 		nats.Name(fmt.Sprintf("%s-%s", natsClientPrefix, clientID.String())),
 		nats.Token(natsToken),
 		nats.MaxReconnects(-1),
