@@ -116,7 +116,7 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 						}
 					}
 				}
-			} else if !_conn.IsClosed() && !_conn.IsDraining() {
+			} else if _conn != nil && !_conn.IsClosed() && !_conn.IsDraining() {
 				log.Debugf("Attempting to drain NATS connection: %s", clientName)
 				_conn.Drain()
 			}
