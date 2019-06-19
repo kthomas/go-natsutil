@@ -19,10 +19,10 @@ const defaultNatsDeadLetterSubject = "nats.deadletter"
 var (
 	log *logger.Logger
 
-	natsConnections          map[string]*nats.Conn
-	natsStreamingConnections map[string]*stan.Conn
+	natsConnections     map[string]*nats.Conn
+	natsConnectionMutex sync.Mutex
 
-	natsConnectionMutex          sync.Mutex
+	natsStreamingConnections     map[string]*stan.Conn
 	natsStreamingConnectionMutex sync.Mutex
 
 	natsClientPrefix        string
