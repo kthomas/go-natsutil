@@ -53,15 +53,15 @@ func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn,
 		}),
 		nats.DisconnectErrHandler(func(_conn *nats.Conn, _err error) {
 			log.Debugf("NATS connection %s disconnected", _conn.Opts.Name)
-			natsConnectionMutex.Lock()
-			delete(natsConnections, _conn.Opts.Name)
-			natsConnectionMutex.Unlock()
 		}),
 		nats.ReconnectHandler(func(_conn *nats.Conn) {
 			log.Debugf("NATS connection reestablished: %s", _conn.Opts.Name)
 		}),
 		nats.DiscoveredServersHandler(func(_conn *nats.Conn) {
 			log.Debugf("NATS connection discovered peers: %s", _conn.Opts.Name)
+		}),
+		nats.ErrorHandler(func(_conn *nats.Conn, sub *nats.Subscription, _err error) {
+			log.Debugf("Encountered asynchronous error on NATS connection: %s; subject: %s; %s", _conn.Opts.Name, sub.Subject, _err.Error())
 		}),
 	}
 
@@ -98,16 +98,27 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 	clientName := []byte(conn.Opts.Name)
 	sClientID := fmt.Sprintf("%s-%s-%s", natsClientPrefix, sClientUUID.String(), conn.Opts.Name)
 
-	var reconnect func(stan.Conn, error)
-	reconnect = func(c stan.Conn, reason error) {
+	var connLostHandler func(stan.Conn, error)
+	connLostHandler = func(c stan.Conn, reason error) {
 		_name := string(clientName)
 		log.Warningf("NATS streaming connection lost: %s; %s", _name, reason.Error())
+
+		if natsConn, natsConnOk := natsConnections[_name]; natsConnOk {
+			err := natsConn.Drain()
+			if err != nil {
+				log.Warningf("Failed to drain underlying NATS streaming connection: %s", _name)
+			} else {
+				log.Debugf("Drained underlying NATS streaming connection: %s", _name)
+			}
+		} else {
+			log.Debugf("Failed to resolve underlying NATS streaming connection: %s", _name)
+		}
 
 		if natsStreamingConn, natsStreamingConnOk := natsStreamingConnections[sClientID]; natsStreamingConnOk {
 			*natsStreamingConn, err = stan.Connect(natsClusterID,
 				sClientID,
 				stan.NatsConn(conn),
-				stan.SetConnectionLostHandler(reconnect),
+				stan.SetConnectionLostHandler(connLostHandler),
 			)
 
 			if err != nil {
@@ -115,7 +126,7 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 			} else {
 				log.Debugf("NATS streaming connection reestablished: %s", sClientID)
 				natsStreamingConnectionMutex.Lock()
-				natsStreamingConnections[sClientID] = sconn
+				natsStreamingConnections[sClientID] = natsStreamingConn
 				natsStreamingConnectionMutex.Unlock()
 			}
 		}
@@ -128,7 +139,7 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 	_sconn, err := stan.Connect(natsClusterID,
 		sClientID,
 		stan.NatsConn(conn),
-		stan.SetConnectionLostHandler(reconnect),
+		stan.SetConnectionLostHandler(connLostHandler),
 	)
 	if err != nil {
 		log.Warningf("NATS streaming connection failed; %s", err.Error())
