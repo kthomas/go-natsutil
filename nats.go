@@ -159,7 +159,7 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 // RequireNatsStreamingSubscription establishes, caches and returns a new NATS streaming connection
 // using GetNatsStreamingConnection, subscribed to the durable subscription with the given parameters;
 // it runs until it is told to exit (TODO: document signal handling)
-func RequireNatsStreamingSubscription(wg *sync.WaitGroup, drainTimeout time.Duration, connectionLostHandler func(_ stan.Conn, reason error), subject, qgroup string, cb stan.MsgHandler, ackWait time.Duration, maxInFlight int) {
+func RequireNatsStreamingSubscription(wg *sync.WaitGroup, drainTimeout time.Duration, subject, qgroup string, cb stan.MsgHandler, ackWait time.Duration, maxInFlight int) {
 	wg.Add(1)
 	go func() {
 		var subscribe func(_ stan.Conn, _ error)
