@@ -2,6 +2,7 @@ package natsutil
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	uuid "github.com/kthomas/go.uuid"
@@ -153,6 +154,51 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 	natsStreamingConnections[sClientID] = sconn
 
 	return sconn, nil
+}
+
+// RequireNatsStreamingSubscription establishes, caches and returns a new NATS streaming connection
+// using GetNatsStreamingConnection, subscribed to the durable subscription with the given parameters;
+// it runs until it is told to exit (TODO: document signal handling)
+func RequireNatsStreamingSubscription(wg *sync.WaitGroup, drainTimeout time.Duration, connectionLostHandler func(_ stan.Conn, reason error), subject, qgroup string, cb stan.MsgHandler, ackWait time.Duration, maxInFlight int) {
+	wg.Add(1)
+	go func() {
+		var subscribe func(_ stan.Conn, _ error)
+		subscribe = func(_ stan.Conn, _ error) {
+			var sconn *stan.Conn
+			for {
+				natsConnection, err := GetNatsStreamingConnection(drainTimeout, subscribe)
+				if err != nil {
+					log.Warningf("Failed to require NATS streaming connection; %s", err.Error())
+					continue
+				}
+				sconn = natsConnection
+				if sconn != nil {
+					break
+				}
+			}
+
+			subscription, err := (*sconn).QueueSubscribe(subject,
+				qgroup,
+				cb,
+				stan.SetManualAckMode(),
+				stan.AckWait(ackWait),
+				stan.MaxInflight(maxInFlight),
+				stan.DurableName(subject),
+			)
+
+			if err != nil {
+				log.Warningf("Failed to subscribe to NATS subject: %s", subject)
+				wg.Done()
+				return
+			}
+			defer subscription.Close()
+			log.Debugf("Subscribed to NATS subject: %s", subject)
+
+			wg.Wait()
+		}
+
+		subscribe(nil, nil)
+	}()
 }
 
 // AttemptNack tries to Nack the given message if it meets basic time-based deadlettering criteria
