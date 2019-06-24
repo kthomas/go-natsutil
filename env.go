@@ -147,6 +147,7 @@ func init() {
 			log.Debugf("Parsed client CA certificates: %s", clientCACertificates)
 		}
 
+		natsConnectTimeout = nats.DefaultTimeout
 		if os.Getenv("NATS_CONNECT_TIMEOUT") != "" {
 			timeout, err := time.ParseDuration(os.Getenv("NATS_CONNECT_TIMEOUT"))
 			if err != nil {
