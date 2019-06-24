@@ -42,6 +42,7 @@ func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn,
 		nats.MaxReconnects(-1),
 		nats.ReconnectBufSize(-1),
 		nats.DrainTimeout(drainTimeout),
+		nats.Timeout(natsConnectTimeout),
 		// nats.AuthTokenHandler(func() string { })
 		nats.ClosedHandler(func(_conn *nats.Conn) {
 			log.Debugf("NATS connection %s closed", _conn.Opts.Name)

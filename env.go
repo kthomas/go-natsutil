@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/kthomas/go-logger"
 	nats "github.com/nats-io/nats.go"
@@ -27,6 +28,7 @@ var (
 
 	natsClientPrefix        string
 	natsClusterID           string
+	natsConnectTimeout      time.Duration
 	natsConsumerConcurrency uint64 // number of subscriptions to open per NATS connection
 	natsDeadLetterSubject   string
 	natsToken               string
@@ -143,6 +145,15 @@ func init() {
 		if os.Getenv("NATS_CLIENT_CA_CERTIFICATES") != "" {
 			clientCACertificates := strings.Split(os.Getenv("NATS_CLIENT_CA_CERTIFICATES"), ",")
 			log.Debugf("Parsed client CA certificates: %s", clientCACertificates)
+		}
+
+		if os.Getenv("NATS_CONNECT_TIMEOUT") != "" {
+			timeout, err := time.ParseDuration(os.Getenv("NATS_CONNECT_TIMEOUT"))
+			if err != nil {
+				natsConnectTimeout = nats.DefaultTimeout
+			} else {
+				natsConnectTimeout = timeout
+			}
 		}
 
 		if len(natsTLSCertificates) > 0 || natsClientAuth != 0 || natsRootCACertificates != nil || len(natsNameToCertificate) > 0 {
