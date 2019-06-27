@@ -63,7 +63,13 @@ func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn,
 			log.Debugf("NATS connection discovered peers: %s", _conn.Opts.Name)
 		}),
 		nats.ErrorHandler(func(_conn *nats.Conn, sub *nats.Subscription, _err error) {
-			log.Debugf("Encountered asynchronous error on NATS connection: %s; subject: %s; %s", _conn.Opts.Name, sub.Subject, _err.Error())
+			if _err != nil {
+				subject := ""
+				if sub != nil {
+					subject = sub.Subject
+				}
+				log.Warningf("Encountered asynchronous error on NATS connection: %s; subject: %s; %s", _conn.Opts.Name, subject, _err.Error())
+			}
 		}),
 	}
 
