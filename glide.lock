@@ -1,0 +1,40 @@
+hash: 78d3fb4ad9efb62bba883461ba7ec6e59fad363599fc4fec5c6903eacb9798ad
+updated: 2019-07-23T00:28:07.167284-04:00
+imports:
+- name: github.com/gogo/protobuf
+  version: dadb625850898f31a8e40e83492f4a7132e520a2
+  subpackages:
+  - gogoproto
+  - proto
+  - protoc-gen-gogo/descriptor
+- name: github.com/google/logger
+  version: 03bdf7bcb2c4d98c8fdbf62f1473fb1303ca1c1d
+- name: github.com/kthomas/go-logger
+  version: 01c36065851341304751234b081327cf58728dba
+- name: github.com/kthomas/go.uuid
+  version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
+- name: github.com/nats-io/nats.go
+  version: e2837a2879e82886f6e21715e3a0217fdc46d370
+  subpackages:
+  - encoders/builtin
+  - util
+- name: github.com/nats-io/nkeys
+  version: 13b630ddaff0a6fe5e90ddfca4642014f84b4910
+- name: github.com/nats-io/nuid
+  version: 4b96681fa6d28dd0ab5fe79bac63b3a493d9ee94
+- name: github.com/nats-io/stan.go
+  version: c5efdc3e2330fb9c81f34082d0c04a8de817748a
+  subpackages:
+  - pb
+- name: golang.org/x/crypto
+  version: 4def268fd1a49955bfb3dda92fe3db4f924f2285
+  subpackages:
+  - ed25519
+  - ed25519/internal/edwards25519
+- name: golang.org/x/sys
+  version: fae7ac547cb717d141c433a2a173315e216b64c4
+  subpackages:
+  - windows
+  - windows/registry
+  - windows/svc/eventlog
+testImports: []
