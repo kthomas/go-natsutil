@@ -241,5 +241,5 @@ func Nack(conn *stan.Conn, msg *stan.Msg) error {
 
 // ShouldDeadletter determines if a given message should be deadlettered
 func ShouldDeadletter(msg *stan.Msg, deadletterTimeout int64) bool {
-	return msg.Redelivered && time.Now().Unix()-msg.Timestamp >= deadletterTimeout
+	return msg.Redelivered && time.Now().UTC().Unix()-(msg.Timestamp/1000/1000/1000) >= deadletterTimeout
 }
