@@ -210,8 +210,9 @@ func RequireNatsStreamingSubscription(wg *sync.WaitGroup, drainTimeout time.Dura
 
 // AttemptNack tries to Nack the given message if it meets basic time-based deadlettering criteria
 func AttemptNack(conn *stan.Conn, msg *stan.Msg, timeout int64) {
-	if ShouldDeadletter(msg, timeout) {
-		log.Debugf("Nacking redelivered %d-byte message after %dms timeout: %s", msg.Size(), timeout, msg.Subject)
+	timeoutMillis := timeout / 1000 / 1000
+	if ShouldDeadletter(msg, timeoutMillis) {
+		log.Debugf("Nacking redelivered %d-byte message after %dms timeout: %s", msg.Size(), timeoutMillis, msg.Subject)
 		Nack(conn, msg)
 	}
 }
@@ -240,8 +241,8 @@ func Nack(conn *stan.Conn, msg *stan.Msg) error {
 }
 
 // ShouldDeadletter determines if a given message should be deadlettered by converting the
-// given message timestamp and deadletterTimeout values from nanosecond resolution to seconds
-// and comparing against current UTC time
-func ShouldDeadletter(msg *stan.Msg, deadletterTimeout int64) bool {
-	return msg.Redelivered && time.Now().UTC().Unix()-(msg.Timestamp/1000/1000/1000) >= (deadletterTimeout/1000/1000/1000)
+// given message timestamp and deadletterTimeout values from nanosecond and millisecond
+// resolutions, respectively, to seconds and comparing against current UTC time
+func ShouldDeadletter(msg *stan.Msg, deadletterTimeoutMillis int64) bool {
+	return msg.Redelivered && time.Now().UTC().Unix()-(msg.Timestamp/1000/1000/1000) >= (deadletterTimeoutMillis/1000)
 }
