@@ -211,7 +211,7 @@ func RequireNatsStreamingSubscription(wg *sync.WaitGroup, drainTimeout time.Dura
 // AttemptNack tries to Nack the given message if it meets basic time-based deadlettering criteria
 func AttemptNack(conn *stan.Conn, msg *stan.Msg, timeout int64) {
 	if ShouldDeadletter(msg, timeout) {
-		log.Debugf("Nacking redelivered %d-byte message after %dms timeout: %s", msg.Size(), timeout, msg.Subject)
+		log.Debugf("Nacking redelivered %d-byte message after %dms timeout: %s", msg.Size(), timeout/1000/1000, msg.Subject)
 		Nack(conn, msg)
 	}
 }
