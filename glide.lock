@@ -1,8 +1,8 @@
 hash: 78d3fb4ad9efb62bba883461ba7ec6e59fad363599fc4fec5c6903eacb9798ad
-updated: 2019-08-16T12:24:40.808149-04:00
+updated: 2019-10-05T00:52:37.18301-04:00
 imports:
 - name: github.com/gogo/protobuf
-  version: dadb625850898f31a8e40e83492f4a7132e520a2
+  version: 28a6bbf47e48e0b2220b2a244750b660c83d4942
   subpackages:
   - gogoproto
   - proto
@@ -32,7 +32,7 @@ imports:
   - ed25519
   - ed25519/internal/edwards25519
 - name: golang.org/x/sys
-  version: fae7ac547cb717d141c433a2a173315e216b64c4
+  version: 04f50cda93cbb67f2afa353c52f342100e80e625
   subpackages:
   - windows
   - windows/registry
