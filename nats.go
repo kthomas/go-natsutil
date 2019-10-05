@@ -19,12 +19,7 @@ func GetNatsConsumerConcurrency() uint64 {
 
 // GetNatsConnection establishes, caches and returns a new NATS connection
 func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn, err error) {
-	clientID, err := uuid.NewV4()
-	if err != nil {
-		log.Warningf("Failed to generate client id for NATS connection; %s", err.Error())
-		return nil, err
-	}
-
+	clientID := uuid.NewV4()
 	natsSecureOption := func(o *nats.Options) error {
 		o.Secure = false
 		return nil
@@ -97,12 +92,7 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 		return nil, err
 	}
 
-	sClientUUID, err := uuid.NewV4()
-	if err != nil {
-		log.Warningf("Failed to generate client uuid for NATS streaming connection; %s", err.Error())
-		return nil, err
-	}
-
+	sClientUUID := uuid.NewV4()
 	clientName := []byte(conn.Opts.Name)
 	sClientID := fmt.Sprintf("%s-%s-%s", natsClientPrefix, sClientUUID.String(), conn.Opts.Name)
 
@@ -122,8 +112,8 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 			log.Debugf("Failed to resolve underlying NATS streaming connection: %s", _name)
 		}
 
-		if natsStreamingConn, natsStreamingConnOk := natsStreamingConnections[sClientID]; natsStreamingConnOk {
-			*natsStreamingConn, err = stan.Connect(natsClusterID,
+		if _, natsStreamingConnOk := natsStreamingConnections[sClientID]; natsStreamingConnOk {
+			natsStreamingConn, err := stan.Connect(natsClusterID,
 				sClientID,
 				stan.NatsConn(conn),
 				stan.SetConnectionLostHandler(connLostHandler),
@@ -134,7 +124,7 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 			} else {
 				log.Debugf("NATS streaming connection reestablished: %s", sClientID)
 				natsStreamingConnectionMutex.Lock()
-				natsStreamingConnections[sClientID] = natsStreamingConn
+				natsStreamingConnections[sClientID] = &natsStreamingConn
 				natsStreamingConnectionMutex.Unlock()
 			}
 		}

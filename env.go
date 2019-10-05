@@ -16,6 +16,7 @@ import (
 )
 
 const defaultNatsDeadLetterSubject = "nats.deadletter"
+const defaultSharedNatsStreamingConnectionDrainTimeout = time.Second * 10
 
 var (
 	log *logger.Logger
@@ -42,6 +43,9 @@ var (
 	natsNameToCertificate    map[string]*tls.Certificate
 	natsRootCACertificates   *x509.CertPool
 	natsClientCACertificates *x509.CertPool
+
+	sharedNatsStreamingConnection             stan.Conn
+	sharedNatsStreamingConnectionDrainTimeout time.Duration
 )
 
 func init() {
@@ -184,6 +188,16 @@ func init() {
 			} else {
 				natsConsumerConcurrency = 1
 			}
+		}
+	}
+
+	sharedNatsStreamingConnectionDrainTimeout = defaultSharedNatsStreamingConnectionDrainTimeout
+	if os.Getenv("SHARED_NATS_STREAMING_CONNECTION_DRAIN_TIMEOUT") != "" {
+		timeout, err := time.ParseDuration(os.Getenv("SHARED_NATS_STREAMING_CONNECTION_DRAIN_TIMEOUT"))
+		if err != nil {
+			sharedNatsStreamingConnectionDrainTimeout = defaultSharedNatsStreamingConnectionDrainTimeout
+		} else {
+			sharedNatsStreamingConnectionDrainTimeout = timeout
 		}
 	}
 
