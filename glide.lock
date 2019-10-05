@@ -1,5 +1,5 @@
-hash: 78d3fb4ad9efb62bba883461ba7ec6e59fad363599fc4fec5c6903eacb9798ad
-updated: 2019-10-05T00:52:37.18301-04:00
+hash: d3c87485d928ef2af922b5dd38473c6a035ec9420180bb2bb7ec2f35e417bbb7
+updated: 2019-10-05T01:11:52.492211-04:00
 imports:
 - name: github.com/gogo/protobuf
   version: 28a6bbf47e48e0b2220b2a244750b660c83d4942
@@ -12,7 +12,7 @@ imports:
 - name: github.com/kthomas/go-logger
   version: 01c36065851341304751234b081327cf58728dba
 - name: github.com/kthomas/go.uuid
-  version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
+  version: 28d1fa77e9a4efcba826a2a6c8f5a9ff6cea44a6
 - name: github.com/nats-io/nats.go
   version: e2837a2879e82886f6e21715e3a0217fdc46d370
   subpackages:
