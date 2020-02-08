@@ -32,7 +32,7 @@ var (
 	natsConnectTimeout      time.Duration
 	natsConsumerConcurrency uint64 // number of subscriptions to open per NATS connection
 	natsDeadLetterSubject   string
-	natsToken               string
+	natsToken               *string
 	natsURL                 string
 	natsStreamingURL        string
 
@@ -59,7 +59,8 @@ func init() {
 	log = logger.NewLogger("go-natsutil", lvl, true)
 
 	if os.Getenv("NATS_TOKEN") != "" {
-		natsToken = os.Getenv("NATS_TOKEN")
+		token := os.Getenv("NATS_TOKEN")
+		natsToken = &token
 	}
 
 	if os.Getenv("NATS_URL") != "" {

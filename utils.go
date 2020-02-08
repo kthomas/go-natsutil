@@ -11,7 +11,7 @@ import (
 var sharedNatsStreamingConnectionMutex sync.Mutex
 
 // EstablishSharedNatsStreamingConnection establishes or reestablishes the default shared NATS streaming connection
-func EstablishSharedNatsStreamingConnection() error {
+func EstablishSharedNatsStreamingConnection(jwt *string) error {
 	if IsSharedNatsStreamingConnectionValid() {
 		return nil
 	}
@@ -19,7 +19,7 @@ func EstablishSharedNatsStreamingConnection() error {
 	sharedNatsStreamingConnectionMutex.Lock()
 	defer sharedNatsStreamingConnectionMutex.Unlock()
 
-	natsConnection, err := GetNatsStreamingConnection(sharedNatsStreamingConnectionDrainTimeout, nil)
+	natsConnection, err := GetNatsStreamingConnection(sharedNatsStreamingConnectionDrainTimeout, jwt, nil)
 	if err != nil {
 		log.Warningf("Failed to establish shared NATS streaming connection; %s", err.Error())
 		return err
@@ -29,7 +29,7 @@ func EstablishSharedNatsStreamingConnection() error {
 }
 
 // GetSharedNatsStreamingConnection retrieves the default shared NATS streaming connection
-func GetSharedNatsStreamingConnection() (stan.Conn, error) {
+func GetSharedNatsStreamingConnection(jwt *string) (stan.Conn, error) {
 	if sharedNatsStreamingConnection != nil {
 		conn := sharedNatsStreamingConnection.NatsConn()
 		if conn != nil && !conn.IsClosed() && !conn.IsDraining() && !conn.IsReconnecting() {
@@ -37,7 +37,7 @@ func GetSharedNatsStreamingConnection() (stan.Conn, error) {
 		}
 	}
 
-	err := EstablishSharedNatsStreamingConnection()
+	err := EstablishSharedNatsStreamingConnection(jwt)
 	if err != nil {
 		log.Warningf("Failed to establish shared NATS streaming connection; %s", err.Error())
 		return sharedNatsStreamingConnection, err
@@ -46,8 +46,8 @@ func GetSharedNatsStreamingConnection() (stan.Conn, error) {
 }
 
 // NatsPublish publishes a NATS message using the default shared NATS streaming environment
-func NatsPublish(subject string, msg []byte) error {
-	natsConnection, err := GetSharedNatsStreamingConnection()
+func NatsPublish(subject string, msg []byte, jwt *string) error {
+	natsConnection, err := GetSharedNatsStreamingConnection(jwt)
 	if err != nil {
 		log.Warningf("Failed to retrieve shared NATS streaming connection for publish; %s", err.Error())
 		return err
@@ -56,8 +56,8 @@ func NatsPublish(subject string, msg []byte) error {
 }
 
 // NatsPublishAsync asynchronously publishes a NATS message using the default shared NATS streaming connection
-func NatsPublishAsync(subject string, msg []byte) (*string, error) {
-	natsConnection, err := GetSharedNatsStreamingConnection()
+func NatsPublishAsync(subject string, msg []byte, jwt *string) (*string, error) {
+	natsConnection, err := GetSharedNatsStreamingConnection(jwt)
 	if err != nil {
 		log.Warningf("Failed to retrieve shared NATS streaming connection for asynchronous publish; %s", err.Error())
 		return nil, err

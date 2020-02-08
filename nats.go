@@ -18,7 +18,7 @@ func GetNatsConsumerConcurrency() uint64 {
 }
 
 // GetNatsConnection establishes, caches and returns a new NATS connection
-func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn, err error) {
+func GetNatsConnection(url string, drainTimeout time.Duration, jwt *string) (conn *nats.Conn, err error) {
 	clientID, err := uuid.NewV4()
 	if err != nil {
 		log.Warningf("Failed to generate client id for NATS connection; %s", err.Error())
@@ -38,7 +38,6 @@ func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn,
 	options := []nats.Option{
 		natsSecureOption,
 		nats.Name(fmt.Sprintf("%s-%s", natsClientPrefix, clientID.String())),
-		nats.Token(natsToken),
 		nats.MaxReconnects(-1),
 		nats.ReconnectBufSize(-1),
 		nats.DrainTimeout(drainTimeout),
@@ -73,6 +72,21 @@ func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn,
 		}),
 	}
 
+	if natsToken != nil {
+		options = append(options, nats.Token(*natsToken))
+	}
+
+	if jwt != nil {
+		options = append(options, nats.UserJWT(
+			func() (string, error) {
+				return *jwt, nil
+			},
+			func([]byte) ([]byte, error) {
+				return []byte{}, nil
+			},
+		))
+	}
+
 	conn, err = nats.Connect(url, options...)
 
 	if err != nil {
@@ -90,8 +104,8 @@ func GetNatsConnection(url string, drainTimeout time.Duration) (conn *nats.Conn,
 
 // GetNatsStreamingConnection establishes, caches and returns a new NATS streaming connection;
 // the underlying NATS connection will not be closed when the NATS streaming subsystem exits.
-func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandler func(_ stan.Conn, reason error)) (sconn *stan.Conn, err error) {
-	conn, err := GetNatsConnection(natsStreamingURL, drainTimeout)
+func GetNatsStreamingConnection(drainTimeout time.Duration, jwt *string, connectionLostHandler func(_ stan.Conn, reason error)) (sconn *stan.Conn, err error) {
+	conn, err := GetNatsConnection(natsStreamingURL, drainTimeout, jwt)
 	if err != nil {
 		log.Warningf("NATS connection failed; %s", err.Error())
 		return nil, err
@@ -166,14 +180,14 @@ func GetNatsStreamingConnection(drainTimeout time.Duration, connectionLostHandle
 // RequireNatsStreamingSubscription establishes, caches and returns a new NATS streaming connection
 // using GetNatsStreamingConnection, subscribed to the durable subscription with the given parameters;
 // it runs until it is told to exit (TODO: document signal handling)
-func RequireNatsStreamingSubscription(wg *sync.WaitGroup, drainTimeout time.Duration, subject, qgroup string, cb stan.MsgHandler, ackWait time.Duration, maxInFlight int) {
+func RequireNatsStreamingSubscription(wg *sync.WaitGroup, drainTimeout time.Duration, subject, qgroup string, cb stan.MsgHandler, ackWait time.Duration, maxInFlight int, jwt *string) {
 	wg.Add(1)
 	go func() {
 		var subscribe func(_ stan.Conn, _ error)
 		subscribe = func(_ stan.Conn, _ error) {
 			var sconn *stan.Conn
 			for {
-				natsConnection, err := GetNatsStreamingConnection(drainTimeout, subscribe)
+				natsConnection, err := GetNatsStreamingConnection(drainTimeout, jwt, subscribe)
 				if err != nil {
 					log.Warningf("Failed to require NATS streaming connection; %s", err.Error())
 					continue
