@@ -76,10 +76,14 @@ func GetNatsConnection(url string, drainTimeout time.Duration, jwt *string) (con
 		options = append(options, nats.Token(*natsToken))
 	}
 
-	if jwt != nil {
+	natsJWT := jwt
+	if natsJWT == nil {
+		natsJWT = natsDefaultBearerJWT
+	}
+	if natsJWT != nil {
 		options = append(options, nats.UserJWT(
 			func() (string, error) {
-				return *jwt, nil
+				return *natsJWT, nil
 			},
 			func([]byte) ([]byte, error) {
 				return []byte{}, nil
