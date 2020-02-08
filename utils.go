@@ -19,7 +19,12 @@ func EstablishSharedNatsStreamingConnection(jwt *string) error {
 	sharedNatsStreamingConnectionMutex.Lock()
 	defer sharedNatsStreamingConnectionMutex.Unlock()
 
-	natsConnection, err := GetNatsStreamingConnection(sharedNatsStreamingConnectionDrainTimeout, jwt, nil)
+	natsJWT := jwt
+	if natsJWT == nil {
+		natsJWT = natsDefaultBearerJWT
+	}
+
+	natsConnection, err := GetNatsStreamingConnection(sharedNatsStreamingConnectionDrainTimeout, natsJWT, nil)
 	if err != nil {
 		log.Warningf("Failed to establish shared NATS streaming connection; %s", err.Error())
 		return err
@@ -37,6 +42,11 @@ func GetSharedNatsStreamingConnection(jwt *string) (stan.Conn, error) {
 		}
 	}
 
+	natsJWT := jwt
+	if natsJWT == nil {
+		natsJWT = natsDefaultBearerJWT
+	}
+
 	err := EstablishSharedNatsStreamingConnection(jwt)
 	if err != nil {
 		log.Warningf("Failed to establish shared NATS streaming connection; %s", err.Error())
@@ -46,8 +56,8 @@ func GetSharedNatsStreamingConnection(jwt *string) (stan.Conn, error) {
 }
 
 // NatsPublish publishes a NATS message using the default shared NATS streaming environment
-func NatsPublish(subject string, msg []byte, jwt *string) error {
-	natsConnection, err := GetSharedNatsStreamingConnection(jwt)
+func NatsPublish(subject string, msg []byte) error {
+	natsConnection, err := GetSharedNatsStreamingConnection(natsDefaultBearerJWT)
 	if err != nil {
 		log.Warningf("Failed to retrieve shared NATS streaming connection for publish; %s", err.Error())
 		return err
@@ -56,8 +66,8 @@ func NatsPublish(subject string, msg []byte, jwt *string) error {
 }
 
 // NatsPublishAsync asynchronously publishes a NATS message using the default shared NATS streaming connection
-func NatsPublishAsync(subject string, msg []byte, jwt *string) (*string, error) {
-	natsConnection, err := GetSharedNatsStreamingConnection(jwt)
+func NatsPublishAsync(subject string, msg []byte) (*string, error) {
+	natsConnection, err := GetSharedNatsStreamingConnection(natsDefaultBearerJWT)
 	if err != nil {
 		log.Warningf("Failed to retrieve shared NATS streaming connection for asynchronous publish; %s", err.Error())
 		return nil, err

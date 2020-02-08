@@ -36,6 +36,7 @@ var (
 	natsURL                 string
 	natsStreamingURL        string
 
+	natsDefaultBearerJWT     *string
 	natsForceTLS             bool
 	natsTLSConfig            *tls.Config
 	natsTLSCertificates      []tls.Certificate
@@ -61,6 +62,11 @@ func init() {
 	if os.Getenv("NATS_TOKEN") != "" {
 		token := os.Getenv("NATS_TOKEN")
 		natsToken = &token
+	}
+
+	if os.Getenv("NATS_DEFAULT_BEARER_JWT") != "" {
+		jwt := os.Getenv("NATS_DEFAULT_BEARER_JWT")
+		natsDefaultBearerJWT = &jwt
 	}
 
 	if os.Getenv("NATS_URL") != "" {
