@@ -5,10 +5,35 @@ import (
 	"sync"
 	"time"
 
+	nats "github.com/nats-io/nats.go"
 	stan "github.com/nats-io/stan.go"
 )
 
+var sharedNatsConnectionMutex sync.Mutex
 var sharedNatsStreamingConnectionMutex sync.Mutex
+
+// EstablishSharedNatsConnection establishes or reestablishes the default shared NATS connection
+func EstablishSharedNatsConnection(jwt *string) error {
+	if IsSharedNatsConnectionValid() {
+		return nil
+	}
+
+	sharedNatsConnectionMutex.Lock()
+	defer sharedNatsConnectionMutex.Unlock()
+
+	natsJWT := jwt
+	if natsJWT == nil {
+		natsJWT = natsDefaultBearerJWT
+	}
+
+	natsConnection, err := GetNatsConnection(natsURL, sharedNatsStreamingConnectionDrainTimeout, natsJWT)
+	if err != nil {
+		log.Warningf("Failed to establish shared NATS streaming connection; %s", err.Error())
+		return err
+	}
+	sharedNatsConnection = natsConnection
+	return nil
+}
 
 // EstablishSharedNatsStreamingConnection establishes or reestablishes the default shared NATS streaming connection
 func EstablishSharedNatsStreamingConnection(jwt *string) error {
@@ -33,6 +58,27 @@ func EstablishSharedNatsStreamingConnection(jwt *string) error {
 	return nil
 }
 
+// GetSharedNatsConnection retrieves the default shared NATS connection
+func GetSharedNatsConnection(jwt *string) (*nats.Conn, error) {
+	if sharedNatsConnection != nil {
+		if !sharedNatsConnection.IsClosed() && !sharedNatsConnection.IsDraining() && !sharedNatsConnection.IsReconnecting() {
+			return sharedNatsConnection, nil
+		}
+	}
+
+	natsJWT := jwt
+	if natsJWT == nil {
+		natsJWT = natsDefaultBearerJWT
+	}
+
+	err := EstablishSharedNatsConnection(jwt)
+	if err != nil {
+		log.Warningf("Failed to establish shared NATS connection; %s", err.Error())
+		return sharedNatsConnection, err
+	}
+	return sharedNatsConnection, nil
+}
+
 // GetSharedNatsStreamingConnection retrieves the default shared NATS streaming connection
 func GetSharedNatsStreamingConnection(jwt *string) (stan.Conn, error) {
 	if sharedNatsStreamingConnection != nil {
@@ -55,8 +101,28 @@ func GetSharedNatsStreamingConnection(jwt *string) (stan.Conn, error) {
 	return sharedNatsStreamingConnection, nil
 }
 
-// NatsPublish publishes a NATS message using the default shared NATS streaming environment
+// NatsPublish publishes a NATS message using the default shared NATS connection
 func NatsPublish(subject string, msg []byte) error {
+	natsConnection, err := GetSharedNatsConnection(natsDefaultBearerJWT)
+	if err != nil {
+		log.Warningf("Failed to retrieve shared NATS connection for publish; %s", err.Error())
+		return err
+	}
+	return natsConnection.Publish(subject, msg)
+}
+
+// NatsPublishRequest publishes a NATS message using the default shared NATS connection
+func NatsPublishRequest(subject, reply string, msg []byte) error {
+	natsConnection, err := GetSharedNatsConnection(natsDefaultBearerJWT)
+	if err != nil {
+		log.Warningf("Failed to retrieve shared NATS connection for publishing request; %s", err.Error())
+		return err
+	}
+	return natsConnection.PublishRequest(subject, reply, msg)
+}
+
+// NatsStreamingPublish publishes a NATS message using the default shared NATS connection
+func NatsStreamingPublish(subject string, msg []byte) error {
 	natsConnection, err := GetSharedNatsStreamingConnection(natsDefaultBearerJWT)
 	if err != nil {
 		log.Warningf("Failed to retrieve shared NATS streaming connection for publish; %s", err.Error())
@@ -65,8 +131,8 @@ func NatsPublish(subject string, msg []byte) error {
 	return natsConnection.Publish(subject, msg)
 }
 
-// NatsPublishAsync asynchronously publishes a NATS message using the default shared NATS streaming connection
-func NatsPublishAsync(subject string, msg []byte) (*string, error) {
+// NatsStreamingPublishAsync asynchronously publishes a NATS message using the default shared NATS streaming connection
+func NatsStreamingPublishAsync(subject string, msg []byte) (*string, error) {
 	natsConnection, err := GetSharedNatsStreamingConnection(natsDefaultBearerJWT)
 	if err != nil {
 		log.Warningf("Failed to retrieve shared NATS streaming connection for asynchronous publish; %s", err.Error())
@@ -123,13 +189,21 @@ func ShouldDeadletter(msg *stan.Msg, deadletterTimeoutMillis int64) bool {
 	return msg.Redelivered && time.Now().UTC().Unix()-(msg.Timestamp/1000/1000/1000) >= (deadletterTimeoutMillis/1000)
 }
 
-// IsSharedNatsStreamingConnectionValid returns true if the default NATS streaming
-func IsSharedNatsStreamingConnectionValid() bool {
+// IsSharedNatsConnectionValid returns true if the default NATS connection is valid for use
+func IsSharedNatsConnectionValid() bool {
 	return !(sharedNatsStreamingConnection == nil ||
 		sharedNatsStreamingConnection.NatsConn() == nil ||
 		sharedNatsStreamingConnection.NatsConn().IsClosed() ||
 		sharedNatsStreamingConnection.NatsConn().IsDraining() ||
 		sharedNatsStreamingConnection.NatsConn().IsReconnecting())
+}
+
+// IsSharedNatsStreamingConnectionValid returns true if the default NATS streaming connection is valid for use
+func IsSharedNatsStreamingConnectionValid() bool {
+	return !(sharedNatsConnection == nil ||
+		sharedNatsConnection.IsClosed() ||
+		sharedNatsConnection.IsDraining() ||
+		sharedNatsConnection.IsReconnecting())
 }
 
 func stringOrNil(str string) *string {
