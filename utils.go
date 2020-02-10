@@ -191,19 +191,19 @@ func ShouldDeadletter(msg *stan.Msg, deadletterTimeoutMillis int64) bool {
 
 // IsSharedNatsConnectionValid returns true if the default NATS connection is valid for use
 func IsSharedNatsConnectionValid() bool {
+	return !(sharedNatsConnection == nil ||
+		sharedNatsConnection.IsClosed() ||
+		sharedNatsConnection.IsDraining() ||
+		sharedNatsConnection.IsReconnecting())
+}
+
+// IsSharedNatsStreamingConnectionValid returns true if the default NATS streaming connection is valid for use
+func IsSharedNatsStreamingConnectionValid() bool {
 	return !(sharedNatsStreamingConnection == nil ||
 		sharedNatsStreamingConnection.NatsConn() == nil ||
 		sharedNatsStreamingConnection.NatsConn().IsClosed() ||
 		sharedNatsStreamingConnection.NatsConn().IsDraining() ||
 		sharedNatsStreamingConnection.NatsConn().IsReconnecting())
-}
-
-// IsSharedNatsStreamingConnectionValid returns true if the default NATS streaming connection is valid for use
-func IsSharedNatsStreamingConnectionValid() bool {
-	return !(sharedNatsConnection == nil ||
-		sharedNatsConnection.IsClosed() ||
-		sharedNatsConnection.IsDraining() ||
-		sharedNatsConnection.IsReconnecting())
 }
 
 func stringOrNil(str string) *string {
