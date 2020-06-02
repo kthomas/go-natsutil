@@ -61,7 +61,12 @@ func init() {
 			lvl = "INFO"
 		}
 	}
-	log = logger.NewLogger("go-natsutil", lvl, true)
+	var endpoint *string
+	if os.Getenv("SYSLOG_ENDPOINT") != "" {
+		endpt := os.Getenv("SYSLOG_ENDPOINT")
+		endpoint = &endpt
+	}
+	log = logger.NewLogger("go-natsutil", lvl, endpoint)
 
 	if os.Getenv("NATS_TOKEN") != "" {
 		token := os.Getenv("NATS_TOKEN")
