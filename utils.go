@@ -1,12 +1,9 @@
 package natsutil
 
 import (
-	"fmt"
 	"sync"
-	"time"
 
 	nats "github.com/nats-io/nats.go"
-	stan "github.com/nats-io/stan.go"
 )
 
 var sharedNatsConnectionMutex sync.Mutex
@@ -99,45 +96,6 @@ func NatsJetstreamPublishAsync(subject string, msg []byte) (nats.PubAckFuture, e
 		return nil, err
 	}
 	return future, err
-}
-
-// AttemptNack tries to Nack the given NATS message if it meets basic time-based deadlettering criteria, using the default shared NATS streaming connection
-func AttemptNack(msg *stan.Msg, timeout int64) {
-	timeoutMillis := timeout / 1000 / 1000
-	if ShouldDeadletter(msg, timeoutMillis) {
-		log.Debugf("nacking redelivered %d-byte message after %dms timeout: %s", msg.Size(), timeoutMillis, msg.Subject)
-		Nack(msg)
-	}
-}
-
-// Nack the given NATS message using the default shared NATS streaming connection
-func Nack(msg *stan.Msg) error {
-	if !IsSharedNatsStreamingConnectionValid() {
-		err := fmt.Errorf("cannot Nack %d-byte NATS message on subject: %s", msg.Size(), msg.Subject)
-		log.Warning(err.Error())
-		return err
-	}
-	_, err := sharedJetstreamConnection.PublishAsync(natsDeadLetterSubject, msg.Data, func(_ string, err error) {
-		if err == nil {
-			err = msg.Ack()
-			if err == nil {
-				log.Debugf("nacked %d-byte NATS message on subject: %s", msg.Size(), msg.Subject)
-			} else {
-				log.Warningf("failed to Nack NATS message which was successfully dead-lettered: %s", err.Error())
-			}
-		}
-	})
-	if err != nil {
-		log.Warningf("failed to Nack %d-byte NATS message on subject: %s; publish failed: %s", msg.Size(), msg.Subject, err.Error())
-	}
-	return err
-}
-
-// ShouldDeadletter determines if a given message should be deadlettered by converting the
-// given message timestamp and deadletterTimeout values from nanosecond and millisecond
-// resolutions, respectively, to seconds and comparing against current UTC time
-func ShouldDeadletter(msg *stan.Msg, deadletterTimeoutMillis int64) bool {
-	return msg.Redelivered && time.Now().UTC().Unix()-(msg.Timestamp/1000/1000/1000) >= (deadletterTimeoutMillis/1000)
 }
 
 // IsSharedNatsConnectionValid returns true if the default NATS connection is valid for use
