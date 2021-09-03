@@ -109,7 +109,7 @@ func GetNatsJetstreamContext(drainTimeout time.Duration, jwt *string, maxPending
 	}
 
 	js, err = conn.JetStream(
-		nats.PublishAsyncMaxPending(maxPending),
+		nats.MaxAckPending(maxPending),
 		nats.PublishAsyncMaxPending(maxPending),
 	)
 	if err != nil {
