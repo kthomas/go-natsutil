@@ -136,13 +136,15 @@ func RequireNatsJetstreamSubscription(
 		return nil, err
 	}
 
+	consumer, _ := uuid.NewV4()
+
 	subscription, err := js.QueueSubscribe(subject,
 		qgroup,
 		cb,
 		nats.ManualAck(),
 		nats.AckWait(ackWait),
 		nats.MaxAckPending(maxInFlight),
-		nats.Durable(subject),
+		nats.Durable(consumer.String()),
 	)
 
 	if err != nil {
