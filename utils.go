@@ -74,31 +74,34 @@ func NatsPublishRequest(subject, reply string, msg []byte) error {
 }
 
 // NatsCreateStream creates a jetstream stream
-func NatsCreateStream(name string, subjects []string) error {
+func NatsCreateStream(name string, subjects []string) (*nats.StreamInfo, error) {
 	js, err := GetNatsJetstreamContext(defaultNatsConnectionDrainTimeout, natsDefaultBearerJWT, defaultJetstreamMaxPending)
 	if err != nil {
 		log.Warningf("failed to retrieve shared NATS connection for stream management; %s", err.Error())
-		return err
+		return nil, err
 	}
 
-	stream, err := js.StreamInfo(name)
+	var stream *nats.StreamInfo
+
+	stream, err = js.StreamInfo(name)
 	if err != nil {
-		return err
-	}
-
-	if stream == nil {
-		log.Debugf("creating NATS stream %s with subjects: %s", name, subjects)
-		_, err = js.AddStream(&nats.StreamConfig{
-			Name:     name,
-			Subjects: subjects,
-		})
-		if err != nil {
-			log.Warningf("failed to create NATS stream: %s; %s", name, err.Error())
-			return err
+		switch err {
+		case nats.ErrStreamNotFound:
+			log.Debugf("creating NATS stream %s with subjects: %s", name, subjects)
+			stream, err = js.AddStream(&nats.StreamConfig{
+				Name:     name,
+				Subjects: subjects,
+			})
+			if err != nil {
+				log.Warningf("failed to create NATS stream: %s; %s", name, err.Error())
+				return stream, err
+			}
+		default:
+			return nil, err
 		}
 	}
 
-	return nil
+	return stream, nil
 }
 
 // NatsJetstreamPublish publishes a NATS jetstream message using the default shared NATS connection
