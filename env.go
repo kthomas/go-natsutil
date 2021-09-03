@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/kthomas/go-logger"
@@ -15,18 +14,13 @@ import (
 	stan "github.com/nats-io/stan.go"
 )
 
+const defaultJetstreamMaxPending = 256
 const defaultNatsDeadLetterSubject = "nats.deadletter"
-const defaultSharedNatsConnectionDrainTimeout = time.Second * 2
-const defaultSharedNatsStreamingConnectionDrainTimeout = time.Second * 10
+const defaultNatsConnectionDrainTimeout = time.Second * 2
+const defaultJetstreamConnectionDrainTimeout = time.Second * 10
 
 var (
 	log *logger.Logger
-
-	natsConnections     map[string]*nats.Conn
-	natsConnectionMutex sync.Mutex
-
-	natsStreamingConnections     map[string]*stan.Conn
-	natsStreamingConnectionMutex sync.Mutex
 
 	natsClientPrefix        string
 	natsClusterID           string
@@ -35,7 +29,7 @@ var (
 	natsDeadLetterSubject   string
 	natsToken               *string
 	natsURL                 string
-	natsStreamingURL        string
+	natsJetstreamURL        string
 
 	natsDefaultBearerJWT     *string
 	natsForceTLS             bool
@@ -49,8 +43,8 @@ var (
 	sharedNatsConnection             *nats.Conn
 	sharedNatsConnectionDrainTimeout time.Duration
 
-	sharedNatsStreamingConnection             stan.Conn
-	sharedNatsStreamingConnectionDrainTimeout time.Duration
+	sharedJetstreamConnection             stan.Conn
+	sharedJetstreamConnectionDrainTimeout time.Duration
 )
 
 func init() {
@@ -194,8 +188,8 @@ func init() {
 		}
 	}
 
-	if os.Getenv("NATS_STREAMING_URL") != "" {
-		natsStreamingURL = os.Getenv("NATS_STREAMING_URL")
+	if os.Getenv("NATS_JETSTREAM_URL") != "" {
+		natsJetstreamURL = os.Getenv("NATS_JETSTREAM_URL")
 
 		if os.Getenv("NATS_STREAMING_CONCURRENCY") != "" {
 			concurrency, err := strconv.ParseUint(os.Getenv("NATS_STREAMING_CONCURRENCY"), 10, 8)
@@ -207,26 +201,23 @@ func init() {
 		}
 	}
 
-	sharedNatsConnectionDrainTimeout = defaultSharedNatsConnectionDrainTimeout
+	sharedNatsConnectionDrainTimeout = defaultJetstreamConnectionDrainTimeout
 	if os.Getenv("SHARED_NATS_CONNECTION_DRAIN_TIMEOUT") != "" {
 		timeout, err := time.ParseDuration(os.Getenv("SHARED_NATS_CONNECTION_DRAIN_TIMEOUT"))
 		if err != nil {
-			sharedNatsConnectionDrainTimeout = defaultSharedNatsConnectionDrainTimeout
+			sharedNatsConnectionDrainTimeout = defaultNatsConnectionDrainTimeout
 		} else {
 			sharedNatsConnectionDrainTimeout = timeout
 		}
 	}
 
-	sharedNatsStreamingConnectionDrainTimeout = defaultSharedNatsStreamingConnectionDrainTimeout
-	if os.Getenv("SHARED_NATS_STREAMING_CONNECTION_DRAIN_TIMEOUT") != "" {
-		timeout, err := time.ParseDuration(os.Getenv("SHARED_NATS_STREAMING_CONNECTION_DRAIN_TIMEOUT"))
+	sharedJetstreamConnectionDrainTimeout = defaultJetstreamConnectionDrainTimeout
+	if os.Getenv("SHARED_NATS__CONNECTION_DRAIN_TIMEOUT") != "" {
+		timeout, err := time.ParseDuration(os.Getenv("SHARED_NATS__CONNECTION_DRAIN_TIMEOUT"))
 		if err != nil {
-			sharedNatsStreamingConnectionDrainTimeout = defaultSharedNatsStreamingConnectionDrainTimeout
+			sharedJetstreamConnectionDrainTimeout = defaultJetstreamConnectionDrainTimeout
 		} else {
-			sharedNatsStreamingConnectionDrainTimeout = timeout
+			sharedJetstreamConnectionDrainTimeout = timeout
 		}
 	}
-
-	natsConnections = map[string]*nats.Conn{}
-	natsStreamingConnections = map[string]*stan.Conn{}
 }
