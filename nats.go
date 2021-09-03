@@ -146,7 +146,7 @@ func RequireNatsJetstreamSubscription(
 	)
 
 	if err != nil {
-		log.Warningf("failed to subscribe to NATS jetstream subject: %s", subject)
+		log.Warningf("failed to subscribe to NATS jetstream subject: %s; %s", subject, err.Error())
 		return nil, err
 	}
 
