@@ -73,6 +73,34 @@ func NatsPublishRequest(subject, reply string, msg []byte) error {
 	return natsConnection.PublishRequest(subject, reply, msg)
 }
 
+// NatsCreateStream creates a jetstream stream
+func NatsCreateStream(name string, subjects []string) error {
+	js, err := GetNatsJetstreamContext(defaultNatsConnectionDrainTimeout, natsDefaultBearerJWT, defaultJetstreamMaxPending)
+	if err != nil {
+		log.Warningf("failed to retrieve shared NATS connection for stream management; %s", err.Error())
+		return err
+	}
+
+	stream, err := js.StreamInfo(name)
+	if err != nil {
+		return err
+	}
+
+	if stream == nil {
+		log.Debugf("creating NATS stream %s with subjects: %s", name, subjects)
+		_, err = js.AddStream(&nats.StreamConfig{
+			Name:     name,
+			Subjects: subjects,
+		})
+		if err != nil {
+			log.Warningf("failed to create NATS stream: %s; %s", name, err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
+
 // NatsJetstreamPublish publishes a NATS jetstream message using the default shared NATS connection
 func NatsJetstreamPublish(subject string, msg []byte) (*nats.PubAck, error) {
 	js, err := GetNatsJetstreamContext(defaultNatsConnectionDrainTimeout, natsDefaultBearerJWT, defaultJetstreamMaxPending)
@@ -104,20 +132,4 @@ func IsSharedNatsConnectionValid() bool {
 		sharedNatsConnection.IsClosed() ||
 		sharedNatsConnection.IsDraining() ||
 		sharedNatsConnection.IsReconnecting())
-}
-
-// IsSharedNatsStreamingConnectionValid returns true if the default NATS streaming connection is valid for use
-func IsSharedNatsStreamingConnectionValid() bool {
-	return !(sharedJetstreamConnection == nil ||
-		sharedJetstreamConnection.NatsConn() == nil ||
-		sharedJetstreamConnection.NatsConn().IsClosed() ||
-		sharedJetstreamConnection.NatsConn().IsDraining() ||
-		sharedJetstreamConnection.NatsConn().IsReconnecting())
-}
-
-func stringOrNil(str string) *string {
-	if str == "" {
-		return nil
-	}
-	return &str
 }
