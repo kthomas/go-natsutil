@@ -128,6 +128,7 @@ func RequireNatsJetstreamSubscription(
 	cb nats.MsgHandler,
 	ackWait time.Duration,
 	maxInFlight int,
+	maxDeliveries int,
 	jwt *string,
 ) (*nats.Subscription, error) {
 	js, err := GetNatsJetstreamContext(drainTimeout, jwt, maxInFlight)
@@ -141,10 +142,11 @@ func RequireNatsJetstreamSubscription(
 	subscription, err := js.QueueSubscribe(subject,
 		qgroup,
 		cb,
-		nats.ManualAck(),
 		nats.AckWait(ackWait),
-		nats.MaxAckPending(maxInFlight),
 		nats.Durable(consumer.String()),
+		nats.ManualAck(),
+		nats.MaxAckPending(maxInFlight),
+		nats.MaxDeliver(maxDeliveries),
 	)
 
 	if err != nil {
