@@ -11,13 +11,12 @@ import (
 
 	"github.com/kthomas/go-logger"
 	nats "github.com/nats-io/nats.go"
-	stan "github.com/nats-io/stan.go"
 )
 
-const defaultJetstreamMaxPending = 256
+const defaultJetstreamMaxPending = 4096
 const defaultNatsDeadLetterSubject = "nats.deadletter"
 const defaultNatsConnectionDrainTimeout = time.Second * 2
-const defaultJetstreamConnectionDrainTimeout = time.Second * 10
+const defaultJetstreamContextDrainTimeout = time.Second * 10
 
 var (
 	log *logger.Logger
@@ -43,8 +42,8 @@ var (
 	sharedNatsConnection             *nats.Conn
 	sharedNatsConnectionDrainTimeout time.Duration
 
-	sharedJetstreamConnection             stan.Conn
-	sharedJetstreamConnectionDrainTimeout time.Duration
+	sharedJetstreamContext             nats.JetStreamContext
+	sharedJetstreamContextDrainTimeout time.Duration
 )
 
 func init() {
@@ -201,7 +200,7 @@ func init() {
 		}
 	}
 
-	sharedNatsConnectionDrainTimeout = defaultJetstreamConnectionDrainTimeout
+	sharedNatsConnectionDrainTimeout = defaultNatsConnectionDrainTimeout
 	if os.Getenv("SHARED_NATS_CONNECTION_DRAIN_TIMEOUT") != "" {
 		timeout, err := time.ParseDuration(os.Getenv("SHARED_NATS_CONNECTION_DRAIN_TIMEOUT"))
 		if err != nil {
@@ -211,13 +210,13 @@ func init() {
 		}
 	}
 
-	sharedJetstreamConnectionDrainTimeout = defaultJetstreamConnectionDrainTimeout
+	sharedJetstreamContextDrainTimeout = defaultJetstreamContextDrainTimeout
 	if os.Getenv("SHARED_NATS__CONNECTION_DRAIN_TIMEOUT") != "" {
-		timeout, err := time.ParseDuration(os.Getenv("SHARED_NATS__CONNECTION_DRAIN_TIMEOUT"))
+		timeout, err := time.ParseDuration(os.Getenv("SHARED_NATS_CONNECTION_DRAIN_TIMEOUT"))
 		if err != nil {
-			sharedJetstreamConnectionDrainTimeout = defaultJetstreamConnectionDrainTimeout
+			sharedJetstreamContextDrainTimeout = defaultJetstreamContextDrainTimeout
 		} else {
-			sharedJetstreamConnectionDrainTimeout = timeout
+			sharedJetstreamContextDrainTimeout = timeout
 		}
 	}
 }

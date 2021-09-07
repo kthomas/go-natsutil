@@ -18,14 +18,9 @@ func EstablishSharedNatsConnection(jwt *string) error {
 	sharedNatsConnectionMutex.Lock()
 	defer sharedNatsConnectionMutex.Unlock()
 
-	natsJWT := jwt
-	if natsJWT == nil {
-		natsJWT = natsDefaultBearerJWT
-	}
-
-	natsConnection, err := GetNatsConnection(natsURL, sharedJetstreamConnectionDrainTimeout, natsJWT)
+	natsConnection, err := GetNatsConnection(natsURL, sharedNatsConnectionDrainTimeout, jwt)
 	if err != nil {
-		log.Warningf("Failed to establish shared NATS streaming connection; %s", err.Error())
+		log.Warningf("failed to establish shared NATS connection; %s", err.Error())
 		return err
 	}
 	sharedNatsConnection = natsConnection
@@ -40,17 +35,31 @@ func GetSharedNatsConnection(jwt *string) (*nats.Conn, error) {
 		}
 	}
 
-	natsJWT := jwt
-	if natsJWT == nil {
-		natsJWT = natsDefaultBearerJWT
-	}
-
 	err := EstablishSharedNatsConnection(jwt)
 	if err != nil {
-		log.Warningf("Failed to establish shared NATS connection; %s", err.Error())
+		log.Warningf("failed to establish shared NATS connection; %s", err.Error())
 		return sharedNatsConnection, err
 	}
 	return sharedNatsConnection, nil
+}
+
+// GetSharedJetstreamContext retrieves the default shared NATS jetstream context
+func GetSharedJetstreamContext(jwt *string) (nats.JetStreamContext, error) {
+	if sharedJetstreamContext != nil {
+		return sharedJetstreamContext, nil
+	}
+
+	sharedJetstreamConnectionMutex.Lock()
+	defer sharedJetstreamConnectionMutex.Unlock()
+
+	js, err := GetNatsJetstreamContext(defaultJetstreamContextDrainTimeout, natsDefaultBearerJWT, defaultJetstreamMaxPending)
+	if err != nil {
+		log.Warningf("failed to retrieve shared NATS jetstream context; %s", err.Error())
+		return nil, err
+	}
+
+	sharedJetstreamContext = js
+	return sharedJetstreamContext, nil
 }
 
 // NatsPublish publishes a NATS message using the default shared NATS connection
@@ -75,7 +84,7 @@ func NatsPublishRequest(subject, reply string, msg []byte) error {
 
 // NatsCreateStream creates a jetstream stream
 func NatsCreateStream(name string, subjects []string) (*nats.StreamInfo, error) {
-	js, err := GetNatsJetstreamContext(defaultNatsConnectionDrainTimeout, natsDefaultBearerJWT, defaultJetstreamMaxPending)
+	js, err := GetSharedJetstreamContext(natsDefaultBearerJWT)
 	if err != nil {
 		log.Warningf("failed to retrieve shared NATS connection for stream management; %s", err.Error())
 		return nil, err
@@ -106,7 +115,7 @@ func NatsCreateStream(name string, subjects []string) (*nats.StreamInfo, error) 
 
 // NatsJetstreamPublish publishes a NATS jetstream message using the default shared NATS connection
 func NatsJetstreamPublish(subject string, msg []byte) (*nats.PubAck, error) {
-	js, err := GetNatsJetstreamContext(defaultNatsConnectionDrainTimeout, natsDefaultBearerJWT, defaultJetstreamMaxPending)
+	js, err := GetSharedJetstreamContext(natsDefaultBearerJWT)
 	if err != nil {
 		log.Warningf("failed to retrieve shared NATS connection for asynchronous jetstream publish; %s", err.Error())
 		return nil, err
@@ -116,7 +125,7 @@ func NatsJetstreamPublish(subject string, msg []byte) (*nats.PubAck, error) {
 
 // NatsJetstreamPublishAsync asynchronously publishes a NATS message using the default shared NATS jetstream context
 func NatsJetstreamPublishAsync(subject string, msg []byte) (nats.PubAckFuture, error) {
-	js, err := GetNatsJetstreamContext(defaultNatsConnectionDrainTimeout, natsDefaultBearerJWT, defaultJetstreamMaxPending)
+	js, err := GetSharedJetstreamContext(natsDefaultBearerJWT)
 	if err != nil {
 		log.Warningf("failed to retrieve shared NATS connection for asynchronous jetstream publish; %s", err.Error())
 		return nil, err
