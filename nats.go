@@ -149,6 +149,7 @@ func RequireNatsJetstreamSubscription(
 		qgroup,
 		cb,
 		nats.AckWait(ackWait),
+		nats.DeliverSubject(subject),
 		nats.Durable(strings.ReplaceAll(consumer, ".", "-")),
 		nats.ManualAck(),
 		nats.MaxAckPending(maxInFlight),
