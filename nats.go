@@ -1,9 +1,11 @@
 package natsutil
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
+	uuid "github.com/kthomas/go.uuid"
 	nats "github.com/nats-io/nats.go"
 )
 
@@ -30,9 +32,12 @@ func GetNatsConnection(
 		natsSecureOption = nats.Secure(natsTLSConfig)
 	}
 
+	clientUUID, _ := uuid.NewV4()
+	clientName := fmt.Sprintf("%s-%s", name, clientUUID.String())
+
 	options := []nats.Option{
 		natsSecureOption,
-		nats.Name(name),
+		nats.Name(clientName),
 		nats.MaxReconnects(-1),
 		nats.ReconnectBufSize(-1),
 		nats.DrainTimeout(drainTimeout),
