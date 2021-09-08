@@ -2,7 +2,6 @@ package natsutil
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -149,7 +148,7 @@ func RequireNatsJetstreamSubscription(
 		qgroup,
 		cb,
 		nats.AckWait(ackWait),
-		nats.Durable(strings.ReplaceAll(consumer, ".", "-")),
+		nats.Durable(qgroup),
 		nats.ManualAck(),
 		nats.MaxAckPending(maxInFlight),
 		nats.MaxDeliver(maxDeliveries),
