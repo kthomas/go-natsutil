@@ -1,11 +1,9 @@
 package natsutil
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
-	uuid "github.com/kthomas/go.uuid"
 	nats "github.com/nats-io/nats.go"
 )
 
@@ -17,13 +15,11 @@ func GetNatsConsumerConcurrency() uint64 {
 }
 
 // GetNatsConnection establishes, caches and returns a new NATS connection
-func GetNatsConnection(url string, drainTimeout time.Duration, jwt *string) (conn *nats.Conn, err error) {
-	clientID, err := uuid.NewV4()
-	if err != nil {
-		log.Warningf("failed to generate client id for NATS connection; %s", err.Error())
-		return nil, err
-	}
-
+func GetNatsConnection(
+	name, url string,
+	drainTimeout time.Duration,
+	jwt *string,
+) (conn *nats.Conn, err error) {
 	natsSecureOption := func(o *nats.Options) error {
 		o.Secure = false
 		return nil
@@ -36,7 +32,7 @@ func GetNatsConnection(url string, drainTimeout time.Duration, jwt *string) (con
 
 	options := []nats.Option{
 		natsSecureOption,
-		nats.Name(fmt.Sprintf("%s-%s", natsClientPrefix, clientID.String())),
+		nats.Name(name),
 		nats.MaxReconnects(-1),
 		nats.ReconnectBufSize(-1),
 		nats.DrainTimeout(drainTimeout),
@@ -101,8 +97,13 @@ func GetNatsConnection(url string, drainTimeout time.Duration, jwt *string) (con
 
 // GetNatsJetstreamContext establishes, caches and returns a new NATS jetstream context;
 // the underlying NATS connection will not be closed when the NATS jetstream subsystem exits.
-func GetNatsJetstreamContext(drainTimeout time.Duration, jwt *string, maxPending int) (js nats.JetStreamContext, err error) {
-	conn, err := GetNatsConnection(natsJetstreamURL, drainTimeout, jwt)
+func GetNatsJetstreamContext(
+	name string,
+	drainTimeout time.Duration,
+	jwt *string,
+	maxPending int,
+) (js nats.JetStreamContext, err error) {
+	conn, err := GetNatsConnection(name, natsJetstreamURL, drainTimeout, jwt)
 	if err != nil {
 		log.Warningf("NATS connection failed; %s", err.Error())
 		return nil, err
@@ -124,26 +125,25 @@ func GetNatsJetstreamContext(drainTimeout time.Duration, jwt *string, maxPending
 func RequireNatsJetstreamSubscription(
 	wg *sync.WaitGroup,
 	drainTimeout time.Duration,
-	subject, qgroup string,
+	subject, consumer, qgroup string,
 	cb nats.MsgHandler,
 	ackWait time.Duration,
 	maxInFlight int,
 	maxDeliveries int,
 	jwt *string,
 ) (*nats.Subscription, error) {
-	js, err := GetNatsJetstreamContext(drainTimeout, jwt, maxInFlight)
+	js, err := GetNatsJetstreamContext(consumer, drainTimeout, jwt, maxInFlight)
 	if err != nil {
 		log.Warningf("failed to require NATS jetstream context; %s", err.Error())
 		return nil, err
 	}
 
-	consumer, _ := uuid.NewV4()
-
-	subscription, err := js.QueueSubscribe(subject,
+	subscription, err := js.QueueSubscribe(
+		subject,
 		qgroup,
 		cb,
 		nats.AckWait(ackWait),
-		nats.Durable(consumer.String()),
+		nats.Durable(consumer),
 		nats.ManualAck(),
 		nats.MaxAckPending(maxInFlight),
 		nats.MaxDeliver(maxDeliveries),

@@ -1,13 +1,18 @@
 package natsutil
 
 import (
+	"fmt"
 	"sync"
 
+	uuid "github.com/kthomas/go.uuid"
 	nats "github.com/nats-io/nats.go"
 )
 
-var sharedNatsConnectionMutex sync.Mutex
+const defaultSharedNatsClientName = "_shared_nats"
+const defaultSharedJetstreamContextName = "_shared_jetstream_ctx"
+
 var sharedJetstreamConnectionMutex sync.Mutex
+var sharedNatsConnectionMutex sync.Mutex
 
 // EstablishSharedNatsConnection establishes or reestablishes the default shared NATS connection
 func EstablishSharedNatsConnection(jwt *string) error {
@@ -18,7 +23,10 @@ func EstablishSharedNatsConnection(jwt *string) error {
 	sharedNatsConnectionMutex.Lock()
 	defer sharedNatsConnectionMutex.Unlock()
 
-	natsConnection, err := GetNatsConnection(natsURL, sharedNatsConnectionDrainTimeout, jwt)
+	clientUUID, _ := uuid.NewV4()
+	name := fmt.Sprintf("%s-%s", defaultSharedNatsClientName, clientUUID.String())
+
+	natsConnection, err := GetNatsConnection(name, natsURL, sharedNatsConnectionDrainTimeout, jwt)
 	if err != nil {
 		log.Warningf("failed to establish shared NATS connection; %s", err.Error())
 		return err
@@ -40,6 +48,7 @@ func GetSharedNatsConnection(jwt *string) (*nats.Conn, error) {
 		log.Warningf("failed to establish shared NATS connection; %s", err.Error())
 		return sharedNatsConnection, err
 	}
+
 	return sharedNatsConnection, nil
 }
 
@@ -52,7 +61,15 @@ func GetSharedJetstreamContext(jwt *string) (nats.JetStreamContext, error) {
 	sharedJetstreamConnectionMutex.Lock()
 	defer sharedJetstreamConnectionMutex.Unlock()
 
-	js, err := GetNatsJetstreamContext(defaultJetstreamContextDrainTimeout, natsDefaultBearerJWT, defaultJetstreamMaxPending)
+	clientUUID, _ := uuid.NewV4()
+	name := fmt.Sprintf("%s-%s", defaultSharedJetstreamContextName, clientUUID.String())
+
+	js, err := GetNatsJetstreamContext(
+		name,
+		defaultJetstreamContextDrainTimeout,
+		natsDefaultBearerJWT,
+		defaultJetstreamMaxPending,
+	)
 	if err != nil {
 		log.Warningf("failed to retrieve shared NATS jetstream context; %s", err.Error())
 		return nil, err

@@ -13,7 +13,7 @@ import (
 	nats "github.com/nats-io/nats.go"
 )
 
-const defaultJetstreamMaxPending = 4096
+const defaultJetstreamMaxPending = 1024 * 4
 const defaultNatsDeadLetterSubject = "nats.deadletter"
 const defaultNatsConnectionDrainTimeout = time.Second * 2
 const defaultJetstreamContextDrainTimeout = time.Second * 10
