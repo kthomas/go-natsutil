@@ -115,9 +115,13 @@ func GetNatsJetstreamContext(
 		return nil, err
 	}
 
-	js, err = conn.JetStream(
-		nats.PublishAsyncMaxPending(maxPending),
-	)
+	options := []nats.JSOpt{}
+
+	if maxPending > 0 {
+		options = append(options, nats.PublishAsyncMaxPending(maxPending))
+	}
+
+	js, err = conn.JetStream(options...)
 	if err != nil {
 		log.Warningf("failed to resolve NATS jetstream context; %s", err.Error())
 		return nil, err
@@ -157,6 +161,12 @@ func RequireNatsJetstreamSubscription(
 
 	if err != nil {
 		log.Warningf("failed to subscribe to NATS jetstream subject: %s; %s", subject, err.Error())
+		return nil, err
+	}
+
+	err = subscription.SetPendingLimits(-1, -1)
+	if err != nil {
+		log.Warningf("failed to set jetstream subscription pending message limits; subject: %s; %s", subject, err.Error())
 		return nil, err
 	}
 
